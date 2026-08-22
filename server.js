@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 if (!process.env.GEMINI_API_KEY) {
   console.error('GEMINI_API_KEY is missing from .env');
@@ -20,16 +20,13 @@ const server = http.createServer(async (req, res) => {
     'Access-Control-Allow-Origin',
     'http://localhost:5174'
   );
+const FRONTEND_URL =
+  process.env.FRONTEND_URL || 'http://localhost:5174';
 
   res.setHeader(
-    'Access-Control-Allow-Methods',
-    'POST, OPTIONS'
-  );
-
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'Content-Type'
-  );
+  'Access-Control-Allow-Origin',
+  FRONTEND_URL
+);
 
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
@@ -143,8 +140,8 @@ Teaching rules:
   );
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(
-    `EduPulse AI server running on http://localhost:${PORT}`
+    `EduPulse AI server running on port ${PORT}`
   );
 });
