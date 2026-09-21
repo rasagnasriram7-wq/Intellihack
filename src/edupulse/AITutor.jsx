@@ -19,14 +19,43 @@ export default function AITutor({ user, onBack }) {
   const [isLoading, setIsLoading] = useState(false);
   const [aiError, setAiError] = useState('');
 
+  const callGeminiAPI = async (question) => {
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    
+    if (!apiKey) {
+      throw new Error("Missing VITE_GEMINI_API_KEY environment variable. Please add it to your deployment settings.");
+    }
+
+    const studentContext = `Student profile: Name: ${user?.name}, Class: ${user?.class}, Subject: ${user?.subject}`;
+    const systemInstruction = `You are EduPulse AI Tutor. Help this student learn. ${studentContext}. Explain concepts clearly and simply.`;
+
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        system_instruction: {
+          parts: [{ text: systemInstruction }]
+        },
+        contents: [{
+          parts: [{ text: question }]
+        }]
+      }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error?.message || 'Failed to connect to Gemini API');
+    }
+    
+    return data.candidates[0].content.parts[0].text;
+  };
+
   const handleSearch = async (e) => {
     e.preventDefault();
-
     const question = searchQuery.trim();
-
-    if (!question) {
-      return;
-    }
+    if (!question) return;
 
     setHasSearched(true);
     setIsLoading(true);
@@ -34,30 +63,11 @@ export default function AITutor({ user, onBack }) {
     setAiError('');
 
     try {
-      const response = await fetch('http://localhost:3001/api/tutor', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          question,
-          student: user,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'AI request failed.');
-      }
-
-      setAiAnswer(data.answer || 'The AI did not return an answer.');
+      const answer = await callGeminiAPI(question);
+      setAiAnswer(answer);
     } catch (error) {
       console.error('AI Tutor error:', error);
-
-      setAiError(
-        'I could not connect to the AI tutor. Please make sure the AI server is running and try again.'
-      );
+      setAiError(error.message || 'I could not connect to the AI tutor. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -65,17 +75,12 @@ export default function AITutor({ user, onBack }) {
 
   const handleRelatedTopic = (topic) => {
     setSearchQuery(topic);
-
-    // Automatically ask AI about the selected topic.
     askQuestion(topic);
   };
 
   const askQuestion = async (question) => {
     const cleanQuestion = question.trim();
-
-    if (!cleanQuestion) {
-      return;
-    }
+    if (!cleanQuestion) return;
 
     setHasSearched(true);
     setIsLoading(true);
@@ -83,30 +88,11 @@ export default function AITutor({ user, onBack }) {
     setAiError('');
 
     try {
-      const response = await fetch('http://localhost:3001/api/tutor', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          question: cleanQuestion,
-          student: user,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'AI request failed.');
-      }
-
-      setAiAnswer(data.answer || 'The AI did not return an answer.');
+      const answer = await callGeminiAPI(cleanQuestion);
+      setAiAnswer(answer);
     } catch (error) {
       console.error('AI Tutor error:', error);
-
-      setAiError(
-        'I could not connect to the AI tutor. Please try again.'
-      );
+      setAiError(error.message || 'I could not connect to the AI tutor. Please try again.');
     } finally {
       setIsLoading(false);
     }
